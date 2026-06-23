@@ -18,6 +18,10 @@ export interface CardProps {
   lineHeight: number
   textAlign: TextAlign
   cueEmphasis: boolean
+  /** Show the safe-area guide overlay (used in the on-screen preview). */
+  showGuidesOverlay?: boolean
+  showSafeArea?: boolean
+  safeMarginMm?: number
 }
 
 export function Card({
@@ -34,6 +38,9 @@ export function Card({
   lineHeight,
   textAlign,
   cueEmphasis,
+  showGuidesOverlay,
+  showSafeArea,
+  safeMarginMm,
 }: CardProps) {
   const label = showMax ? `${face.cardNumber}/${totalCards}` : `${face.cardNumber}`
   return (
@@ -64,6 +71,13 @@ export function Card({
           <Markdown remarkPlugins={[remarkGfm]}>{face.markdown}</Markdown>
         )}
       </div>
+      {showGuidesOverlay && showSafeArea && (
+        <div
+          className="card-safe-guide"
+          aria-hidden="true"
+          style={{ inset: `${mmToPx(safeMarginMm ?? paddingMm)}px` }}
+        />
+      )}
       {showNumbers && (
         <span className={`card-number pos-${numberPosition}`} style={{ color: theme.muted }}>
           {label}

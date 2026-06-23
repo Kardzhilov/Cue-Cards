@@ -156,6 +156,8 @@ export default function App() {
     lineHeight: settings.lineHeight,
     textAlign: settings.textAlign,
     cueEmphasis: settings.cueEmphasis,
+    showSafeArea: settings.showSafeArea,
+    safeMarginMm: metrics.paddingMm,
   }
 
   const guides = {

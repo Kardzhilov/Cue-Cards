@@ -4,7 +4,6 @@ import { SHEET_SIZES } from './cardSizes'
 
 export const SHEET_MARGIN_MM = 8
 const CUT_LINE_GRAY = 170
-const GUIDE_GRAY = 200
 const CROP_MARK_LEN_MM = 3
 const CROP_MARK_GAP_MM = 1
 
@@ -53,16 +52,19 @@ export function drawGuides(
   pdf.rect(x, y, w, h)
 
   if (guides.bleedMm > 0) {
-    pdf.setDrawColor(GUIDE_GRAY)
-    pdf.setLineDashPattern([0.6, 0.6], 0)
+    pdf.setDrawColor(150)
+    pdf.setLineWidth(0.2)
+    pdf.setLineDashPattern([0.8, 0.8], 0)
     pdf.rect(x - guides.bleedMm, y - guides.bleedMm, w + 2 * guides.bleedMm, h + 2 * guides.bleedMm)
     pdf.setLineDashPattern([], 0)
   }
 
-  if (guides.showSafeArea && guides.safeMarginMm > 0) {
+  if (guides.showSafeArea && guides.safeMarginMm > 0 && guides.safeMarginMm * 2 < Math.min(w, h)) {
     const m = guides.safeMarginMm
-    pdf.setDrawColor(GUIDE_GRAY)
-    pdf.setLineDashPattern([0.8, 0.8], 0)
+    // Distinct blue dashed guide so it is clearly visible on any card colour.
+    pdf.setDrawColor(43, 111, 237)
+    pdf.setLineWidth(0.25)
+    pdf.setLineDashPattern([1.4, 1], 0)
     pdf.rect(x + m, y + m, w - 2 * m, h - 2 * m)
     pdf.setLineDashPattern([], 0)
   }

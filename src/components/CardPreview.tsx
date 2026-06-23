@@ -20,6 +20,8 @@ export interface CardPreviewProps {
   lineHeight: number
   textAlign: TextAlign
   cueEmphasis: boolean
+  showSafeArea: boolean
+  safeMarginMm: number
 }
 
 export function CardPreview(props: CardPreviewProps) {
@@ -37,7 +39,7 @@ export function CardPreview(props: CardPreviewProps) {
         <figure key={i} className={`preview-item${face.overflow ? ' is-overflow' : ''}`}>
           <div className="preview-scaler" style={{ width: PREVIEW_CARD_WIDTH_PX, height: wrapperHeight }}>
             <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-              <Card {...props} face={face} />
+              <Card {...props} face={face} showGuidesOverlay />
             </div>
           </div>
           <figcaption>

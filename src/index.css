@@ -329,6 +329,12 @@ body {
   font-weight: 700;
 }
 
+.card-safe-guide {
+  position: absolute;
+  border: 1px dashed #2b6fed;
+  pointer-events: none;
+}
+
 .card-content > :first-child {
   margin-top: 0;
 }
