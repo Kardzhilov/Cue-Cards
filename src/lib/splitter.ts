@@ -1,4 +1,4 @@
-import type { CardFace } from '../types'
+import type { BackMode, CardFace } from '../types'
 import { measureMarkdownHeight } from './measure'
 
 export interface SplitOptions {
@@ -6,11 +6,14 @@ export interface SplitOptions {
   contentHeightPx: number
   fontSizePx: number
   doubleSided: boolean
+  backMode: BackMode
 }
 
 export interface SplitResult {
   faces: CardFace[]
   totalCards: number
+  /** Number of faces whose content overflows the card. */
+  overflowCount: number
 }
 
 type JoinKind = 'block' | 'line' | 'inline'
@@ -122,8 +125,8 @@ function refineUnit(unit: Unit): Unit[] {
 }
 
 /** Greedily pack units into face-sized chunks of markdown. */
-function packFaces(units: Unit[], opts: SplitOptions): string[] {
-  const faces: string[] = []
+function packFaces(units: Unit[], opts: SplitOptions): { text: string; overflow: boolean }[] {
+  const faces: { text: string; overflow: boolean }[] = []
   let current = ''
   const queue = [...units]
 
@@ -144,7 +147,7 @@ function packFaces(units: Unit[], opts: SplitOptions): string[] {
 
     // Doesn't fit. First flush whatever we have so the unit can try a fresh face.
     if (current) {
-      faces.push(current)
+      faces.push({ text: current, overflow: false })
       current = ''
       if (fits(unit.text)) {
         current = unit.text
@@ -160,33 +163,70 @@ function packFaces(units: Unit[], opts: SplitOptions): string[] {
     }
 
     // Atomic and still too big (e.g. one very long word): place it alone.
-    faces.push(unit.text)
+    faces.push({ text: unit.text, overflow: true })
   }
 
-  if (current) faces.push(current)
+  if (current) faces.push({ text: current, overflow: false })
   return faces
 }
 
 export function splitIntoFaces(text: string, opts: SplitOptions): SplitResult {
   const segments = splitSegments(text)
-  const faces: string[] = []
+  const chunks: { text: string; overflow: boolean }[] = []
   for (const segment of segments) {
     const units = tokenizeSegment(segment)
-    faces.push(...packFaces(units, opts))
+    chunks.push(...packFaces(units, opts))
   }
 
-  const totalCards = opts.doubleSided ? Math.ceil(faces.length / 2) : faces.length
+  const cardFaces: CardFace[] = []
 
-  const cardFaces: CardFace[] = faces.map((markdown, i) => {
-    if (opts.doubleSided) {
-      return {
-        markdown,
+  if (opts.doubleSided && opts.backMode === 'notes') {
+    // Each text chunk is a front; every card gets a blank notes back.
+    chunks.forEach((chunk, i) => {
+      cardFaces.push({
+        markdown: chunk.text,
+        cardNumber: i + 1,
+        side: 'front',
+        overflow: chunk.overflow,
+      })
+      cardFaces.push({ markdown: '', cardNumber: i + 1, side: 'back', isNotes: true })
+    })
+    return {
+      faces: cardFaces,
+      totalCards: chunks.length,
+      overflowCount: chunks.filter((c) => c.overflow).length,
+    }
+  }
+
+  if (opts.doubleSided) {
+    // Text continues front then back of each physical card.
+    chunks.forEach((chunk, i) => {
+      cardFaces.push({
+        markdown: chunk.text,
         cardNumber: Math.floor(i / 2) + 1,
         side: i % 2 === 0 ? 'front' : 'back',
-      }
+        overflow: chunk.overflow,
+      })
+    })
+    return {
+      faces: cardFaces,
+      totalCards: Math.ceil(chunks.length / 2),
+      overflowCount: chunks.filter((c) => c.overflow).length,
     }
-    return { markdown, cardNumber: i + 1, side: 'front' }
-  })
+  }
 
-  return { faces: cardFaces, totalCards }
+  // Single-sided: one face per card.
+  chunks.forEach((chunk, i) => {
+    cardFaces.push({
+      markdown: chunk.text,
+      cardNumber: i + 1,
+      side: 'front',
+      overflow: chunk.overflow,
+    })
+  })
+  return {
+    faces: cardFaces,
+    totalCards: chunks.length,
+    overflowCount: chunks.filter((c) => c.overflow).length,
+  }
 }

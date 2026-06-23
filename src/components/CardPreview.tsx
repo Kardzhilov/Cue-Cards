@@ -29,7 +29,7 @@ export function CardPreview(props: CardPreviewProps) {
   return (
     <div className="preview-grid">
       {faces.map((face, i) => (
-        <figure key={i} className="preview-item">
+        <figure key={i} className={`preview-item${face.overflow ? ' is-overflow' : ''}`}>
           <div className="preview-scaler" style={{ width: PREVIEW_CARD_WIDTH_PX, height: wrapperHeight }}>
             <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
               <Card {...props} face={face} />
@@ -37,7 +37,8 @@ export function CardPreview(props: CardPreviewProps) {
           </div>
           <figcaption>
             Card {face.cardNumber}
-            {doubleSided ? ` · ${face.side}` : ''}
+            {doubleSided ? ` · ${face.isNotes ? 'notes' : face.side}` : ''}
+            {face.overflow && <span className="overflow-badge" title="Content overflows this card"> ⚠</span>}
           </figcaption>
         </figure>
       ))}

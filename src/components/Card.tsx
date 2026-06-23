@@ -39,7 +39,14 @@ export function Card({
       }}
     >
       <div className="card-content">
-        <Markdown remarkPlugins={[remarkGfm]}>{face.markdown}</Markdown>
+        {face.isNotes ? (
+          <div className="card-notes" aria-label="Notes area">
+            <span className="card-notes-label">Notes</span>
+            <div className="card-notes-lines" />
+          </div>
+        ) : (
+          <Markdown remarkPlugins={[remarkGfm]}>{face.markdown}</Markdown>
+        )}
       </div>
       {showNumbers && <span className={`card-number pos-${numberPosition}`}>{label}</span>}
     </div>

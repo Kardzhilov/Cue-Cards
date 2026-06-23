@@ -98,20 +98,32 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           checked={settings.doubleSided}
           onChange={(e) => onChange({ doubleSided: e.target.checked })}
         />
-        <span>Double-sided (text continues on the back)</span>
+        <span>Double-sided</span>
       </label>
 
       {settings.doubleSided && (
-        <label className="field">
-          <span>Duplex flip edge</span>
-          <select
-            value={settings.flipEdge}
-            onChange={(e) => onChange({ flipEdge: e.target.value as Settings['flipEdge'] })}
-          >
-            <option value="long">Long edge</option>
-            <option value="short">Short edge</option>
-          </select>
-        </label>
+        <>
+          <label className="field">
+            <span>Back content</span>
+            <select
+              value={settings.backMode}
+              onChange={(e) => onChange({ backMode: e.target.value as Settings['backMode'] })}
+            >
+              <option value="continue">Continue text onto back</option>
+              <option value="notes">Blank notes back</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Duplex flip edge</span>
+            <select
+              value={settings.flipEdge}
+              onChange={(e) => onChange({ flipEdge: e.target.value as Settings['flipEdge'] })}
+            >
+              <option value="long">Long edge</option>
+              <option value="short">Short edge</option>
+            </select>
+          </label>
+        </>
       )}
 
       <label className="field checkbox">
@@ -158,6 +170,49 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           <option value="a4">A4</option>
           <option value="letter">US Letter</option>
         </select>
+      </label>
+
+      <h3 className="settings-subhead">Output</h3>
+
+      <label className="field">
+        <span>PDF text</span>
+        <select
+          value={settings.pdfMode}
+          onChange={(e) => onChange({ pdfMode: e.target.value as Settings['pdfMode'] })}
+        >
+          <option value="raster">Raster (exact preview)</option>
+          <option value="vector">Vector (selectable text)</option>
+        </select>
+      </label>
+
+      <label className="field">
+        <span>Bleed (mm)</span>
+        <input
+          type="number"
+          min={0}
+          max={10}
+          step={0.5}
+          value={settings.bleedMm}
+          onChange={(e) => onChange({ bleedMm: Number(e.target.value) })}
+        />
+      </label>
+
+      <label className="field checkbox">
+        <input
+          type="checkbox"
+          checked={settings.showSafeArea}
+          onChange={(e) => onChange({ showSafeArea: e.target.checked })}
+        />
+        <span>Show safe-area guide</span>
+      </label>
+
+      <label className="field checkbox">
+        <input
+          type="checkbox"
+          checked={settings.showCropMarks}
+          onChange={(e) => onChange({ showCropMarks: e.target.checked })}
+        />
+        <span>Show crop marks</span>
       </label>
     </div>
   )

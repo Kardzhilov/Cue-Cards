@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings } from './types'
 import { resolveCardSize } from './lib/cardSizes'
 import { computeContentMetrics, fontSizePx } from './lib/cardStyle'
 import { splitIntoFaces } from './lib/splitter'
-import { generatePdf } from './lib/pdf'
+import { generatePdf, buildPdf } from './lib/pdf'
+import { generateVectorPdf, buildVectorPdf } from './lib/pdfVector'
+import { exportPngZip, buildPngZipBlob } from './lib/exportImages'
+import { useHistory } from './hooks/useHistory'
 import { Card } from './components/Card'
 import { CardPreview } from './components/CardPreview'
 import { SettingsPanel } from './components/SettingsPanel'
+import { StatsBar } from './components/StatsBar'
 
 const SAMPLE_TEXT = `# Welcome to Cue Cards
 
@@ -30,20 +34,40 @@ const DEFAULT_SETTINGS: Settings = {
   orientation: 'landscape',
   fontSizePt: 16,
   doubleSided: false,
+  backMode: 'continue',
   flipEdge: 'long',
   showNumbers: true,
   showMax: true,
   numberPosition: 'bottom-right',
   sheetSize: 'a4',
+  pdfMode: 'raster',
+  bleedMm: 0,
+  showSafeArea: false,
+  showCropMarks: false,
 }
 
-export default function App() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
-  const [faces, setFaces] = useState<ReturnType<typeof splitIntoFaces>>({ faces: [], totalCards: 0 })
-  const [generating, setGenerating] = useState(false)
-  const printRef = useRef<HTMLDivElement>(null)
+const ACCEPTED_FILES = '.txt,.md,.markdown,text/plain,text/markdown'
 
-  const patch = (p: Partial<Settings>) => setSettings((s) => ({ ...s, ...p }))
+export default function App() {
+  const history = useHistory<Settings>(DEFAULT_SETTINGS)
+  const settings = history.state
+  const [result, setResult] = useState<ReturnType<typeof splitIntoFaces>>({
+    faces: [],
+    totalCards: 0,
+    overflowCount: 0,
+  })
+  const [busy, setBusy] = useState<null | 'pdf' | 'png'>(null)
+  const printRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const patch = useCallback(
+    (p: Partial<Settings>) => history.set({ ...history.state, ...p }),
+    [history],
+  )
+  const setText = useCallback(
+    (text: string) => history.set({ ...history.state, text }, true),
+    [history],
+  )
 
   const { widthMm, heightMm } = useMemo(
     () =>
@@ -64,22 +88,43 @@ export default function App() {
   // Re-split (debounced) whenever inputs that affect layout change.
   useEffect(() => {
     const handle = setTimeout(() => {
-      const result = splitIntoFaces(settings.text, {
-        contentWidthPx: metrics.contentWidthPx,
-        contentHeightPx: metrics.contentHeightPx,
-        fontSizePx: fontSizePx(settings.fontSizePt),
-        doubleSided: settings.doubleSided,
-      })
-      setFaces(result)
+      setResult(
+        splitIntoFaces(settings.text, {
+          contentWidthPx: metrics.contentWidthPx,
+          contentHeightPx: metrics.contentHeightPx,
+          fontSizePx: fontSizePx(settings.fontSizePt),
+          doubleSided: settings.doubleSided,
+          backMode: settings.backMode,
+        }),
+      )
     }, 250)
     return () => clearTimeout(handle)
   }, [
     settings.text,
     settings.fontSizePt,
     settings.doubleSided,
+    settings.backMode,
     metrics.contentWidthPx,
     metrics.contentHeightPx,
   ])
+
+  // Keyboard: undo / redo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      const key = e.key.toLowerCase()
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        history.undo()
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault()
+        history.redo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [history])
 
   const cardProps = {
     widthMm,
@@ -89,27 +134,111 @@ export default function App() {
     showNumbers: settings.showNumbers,
     showMax: settings.showMax,
     numberPosition: settings.numberPosition,
-    totalCards: faces.totalCards,
+    totalCards: result.totalCards,
   }
 
-  const handleGenerate = async () => {
-    const root = printRef.current
-    if (!root || faces.faces.length === 0) return
-    const nodes = Array.from(root.querySelectorAll<HTMLElement>('[data-card]'))
-    setGenerating(true)
-    try {
-      await generatePdf({
-        faces: faces.faces,
-        nodes,
-        cardWidthMm: widthMm,
-        cardHeightMm: heightMm,
-        sheetSize: settings.sheetSize,
-        doubleSided: settings.doubleSided,
-        flipEdge: settings.flipEdge,
-      })
-    } finally {
-      setGenerating(false)
+  const guides = {
+    bleedMm: settings.bleedMm,
+    showSafeArea: settings.showSafeArea,
+    safeMarginMm: metrics.paddingMm,
+    showCropMarks: settings.showCropMarks,
+  }
+
+  const stats = useMemo(() => {
+    const trimmed = settings.text.trim()
+    return {
+      words: trimmed ? trimmed.split(/\s+/).length : 0,
+      chars: settings.text.length,
     }
+  }, [settings.text])
+
+  const getNodes = () =>
+    printRef.current ? Array.from(printRef.current.querySelectorAll<HTMLElement>('[data-card]')) : []
+
+  const rasterParams = () => ({
+    faces: result.faces,
+    nodes: getNodes(),
+    cardWidthMm: widthMm,
+    cardHeightMm: heightMm,
+    sheetSize: settings.sheetSize,
+    doubleSided: settings.doubleSided,
+    flipEdge: settings.flipEdge,
+    guides,
+  })
+
+  const vectorParams = () => ({
+    faces: result.faces,
+    cardWidthMm: widthMm,
+    cardHeightMm: heightMm,
+    sheetSize: settings.sheetSize,
+    doubleSided: settings.doubleSided,
+    flipEdge: settings.flipEdge,
+    guides,
+    style: {
+      fontSizePt: settings.fontSizePt,
+      paddingMm: metrics.paddingMm,
+      showNumbers: settings.showNumbers,
+      showMax: settings.showMax,
+      numberPosition: settings.numberPosition,
+      totalCards: result.totalCards,
+    },
+  })
+
+  // Dev-only test hook: lets automated checks obtain export output as a Blob
+  // WITHOUT triggering a browser download (no save dialog). Stripped from prod.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const w = window as unknown as { __cueCardsTest?: unknown }
+    w.__cueCardsTest = {
+      async pdf(): Promise<Blob | null> {
+        if (result.faces.length === 0) return null
+        if (settings.pdfMode === 'vector') {
+          return buildVectorPdf(vectorParams())?.output('blob') ?? null
+        }
+        return (await buildPdf(rasterParams()))?.output('blob') ?? null
+      },
+      async pngZip(): Promise<Blob | null> {
+        return buildPngZipBlob(result.faces, getNodes())
+      },
+    }
+    return () => {
+      delete (window as unknown as { __cueCardsTest?: unknown }).__cueCardsTest
+    }
+  })
+
+  const handleGenerate = async () => {
+    if (result.faces.length === 0) return
+    setBusy('pdf')
+    try {
+      if (settings.pdfMode === 'vector') {
+        generateVectorPdf(vectorParams())
+      } else {
+        await generatePdf(rasterParams())
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleExportPng = async () => {
+    if (result.faces.length === 0) return
+    setBusy('png')
+    try {
+      await exportPngZip(result.faces, getNodes())
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const importFile = async (file: File | undefined) => {
+    if (!file) return
+    const text = await file.text()
+    patch({ text })
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    void importFile(e.dataTransfer.files?.[0])
   }
 
   return (
@@ -121,34 +250,101 @@ export default function App() {
 
       <main className="layout">
         <section className="panel input-panel">
+          <div className="toolbar" role="toolbar" aria-label="Text actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => history.undo()}
+              disabled={!history.canUndo}
+              aria-label="Undo"
+              title="Undo (Ctrl+Z)"
+            >
+              ↺ Undo
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => history.redo()}
+              disabled={!history.canRedo}
+              aria-label="Redo"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              ↻ Redo
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => fileInputRef.current?.click()}
+              title="Import a .txt or .md file"
+            >
+              📂 Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_FILES}
+              className="visually-hidden"
+              onChange={(e) => {
+                void importFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+          </div>
+
           <label className="field">
-            <span>Your text (Markdown supported)</span>
+            <span>Your text (Markdown supported — drag a file here too)</span>
             <textarea
               value={settings.text}
-              onChange={(e) => patch({ text: e.target.value })}
-              rows={16}
+              onChange={(e) => setText(e.target.value)}
+              onDrop={onDrop}
+              onDragOver={(e) => e.preventDefault()}
+              rows={14}
               spellCheck
+              aria-label="Cue card text input"
             />
           </label>
+
+          <StatsBar
+            words={stats.words}
+            chars={stats.chars}
+            faceCount={result.faces.length}
+            cardCount={result.totalCards}
+            doubleSided={settings.doubleSided}
+            overflowCount={result.overflowCount}
+          />
+
           <SettingsPanel settings={settings} onChange={patch} />
-          <button
-            className="generate"
-            onClick={handleGenerate}
-            disabled={generating || faces.faces.length === 0}
-          >
-            {generating ? 'Generating…' : `Download PDF (${faces.totalCards} card${faces.totalCards === 1 ? '' : 's'})`}
-          </button>
+
+          <div className="actions">
+            <button
+              className="generate"
+              onClick={handleGenerate}
+              disabled={busy !== null || result.faces.length === 0}
+            >
+              {busy === 'pdf'
+                ? 'Generating…'
+                : `Download PDF (${result.totalCards} card${result.totalCards === 1 ? '' : 's'})`}
+            </button>
+            <button
+              className="secondary"
+              onClick={handleExportPng}
+              disabled={busy !== null || result.faces.length === 0}
+              title="Download a zip with one PNG per card"
+            >
+              {busy === 'png' ? 'Exporting…' : 'Export PNGs'}
+            </button>
+          </div>
         </section>
 
-        <section className="panel preview-panel">
+        <section className="panel preview-panel" aria-label="Card preview">
           <h2>Preview</h2>
-          <CardPreview {...cardProps} faces={faces.faces} doubleSided={settings.doubleSided} />
+          <CardPreview {...cardProps} faces={result.faces} doubleSided={settings.doubleSided} />
         </section>
       </main>
 
-      {/* Off-screen full-size cards used as the source for PDF rasterization. */}
+      {/* Off-screen full-size cards used as the source for PDF/PNG rasterization. */}
       <div className="print-root" ref={printRef} aria-hidden="true">
-        {faces.faces.map((face, i) => (
+        {result.faces.map((face, i) => (
           <Card key={i} {...cardProps} face={face} />
         ))}
       </div>
