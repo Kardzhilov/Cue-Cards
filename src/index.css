@@ -1,0 +1,262 @@
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --border: #d7dbe0;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --accent: #2f6fed;
+  --accent-hover: #2559c9;
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.app-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+}
+
+.app-header p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+/* ---- Form fields ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.field > span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.field input[type="number"],
+.field select,
+.input-panel textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: var(--text);
+}
+
+.input-panel textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.field small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
+.field.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.field.checkbox > span {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings h2 {
+  margin: 6px 0 12px;
+  font-size: 1rem;
+}
+
+.generate {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.generate:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.generate:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Preview ---- */
+.preview-empty {
+  color: var(--muted);
+}
+
+.preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.preview-item {
+  margin: 0;
+}
+
+.preview-scaler {
+  overflow: hidden;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.preview-item figcaption {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  text-transform: capitalize;
+}
+
+/* ---- Card (shared by preview + PDF capture) ---- */
+.card {
+  position: relative;
+  background: #fff;
+  overflow: hidden;
+  line-height: 1.35;
+  color: #111;
+}
+
+.card-content {
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.card-content > :first-child {
+  margin-top: 0;
+}
+
+.card-content > :last-child {
+  margin-bottom: 0;
+}
+
+.card-content p,
+.card-content ul,
+.card-content ol,
+.card-content blockquote {
+  margin: 0 0 0.6em;
+}
+
+.card-content h1,
+.card-content h2,
+.card-content h3,
+.card-content h4 {
+  margin: 0 0 0.4em;
+  line-height: 1.2;
+}
+
+.card-content ul,
+.card-content ol {
+  padding-left: 1.3em;
+}
+
+.card-content li {
+  margin: 0 0 0.2em;
+}
+
+.card-number {
+  position: absolute;
+  font-size: 9pt;
+  color: #555;
+  line-height: 1;
+}
+
+.card-number.pos-top-left {
+  top: 1.2mm;
+  left: 1.5mm;
+}
+.card-number.pos-top-center {
+  top: 1.2mm;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.card-number.pos-top-right {
+  top: 1.2mm;
+  right: 1.5mm;
+}
+.card-number.pos-bottom-left {
+  bottom: 1.2mm;
+  left: 1.5mm;
+}
+.card-number.pos-bottom-center {
+  bottom: 1.2mm;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.card-number.pos-bottom-right {
+  bottom: 1.2mm;
+  right: 1.5mm;
+}
+
+/* Off-screen full-size cards used only for PDF rasterization. */
+.print-root {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+}

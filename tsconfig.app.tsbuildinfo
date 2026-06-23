@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/Card.tsx","./src/components/CardPreview.tsx","./src/components/SettingsPanel.tsx","./src/lib/cardSizes.ts","./src/lib/cardStyle.ts","./src/lib/markdownToHtml.tsx","./src/lib/measure.ts","./src/lib/pdf.ts","./src/lib/splitter.ts"],"version":"6.0.3"}
