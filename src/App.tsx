@@ -7,6 +7,7 @@ import { generatePdf, buildPdf } from './lib/pdf'
 import { generateVectorPdf, buildVectorPdf } from './lib/pdfVector'
 import { exportPngZip, buildPngZipBlob } from './lib/exportImages'
 import { useHistory } from './hooks/useHistory'
+import { getTheme, DEFAULT_THEME_ID } from './lib/cardThemes'
 import { Card } from './components/Card'
 import { CardPreview } from './components/CardPreview'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -44,6 +45,11 @@ const DEFAULT_SETTINGS: Settings = {
   bleedMm: 0,
   showSafeArea: false,
   showCropMarks: false,
+  themeId: DEFAULT_THEME_ID,
+  darkMode: false,
+  lineHeight: 1.35,
+  textAlign: 'left',
+  cueEmphasis: false,
 }
 
 const ACCEPTED_FILES = '.txt,.md,.markdown,text/plain,text/markdown'
@@ -85,6 +91,13 @@ export default function App() {
     [widthMm, heightMm, settings.showNumbers],
   )
 
+  const theme = useMemo(() => getTheme(settings.themeId), [settings.themeId])
+
+  // Apply app dark mode to the document root.
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.darkMode ? 'dark' : 'light'
+  }, [settings.darkMode])
+
   // Re-split (debounced) whenever inputs that affect layout change.
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -95,6 +108,8 @@ export default function App() {
           fontSizePx: fontSizePx(settings.fontSizePt),
           doubleSided: settings.doubleSided,
           backMode: settings.backMode,
+          lineHeight: settings.lineHeight,
+          cueEmphasis: settings.cueEmphasis,
         }),
       )
     }, 250)
@@ -104,6 +119,8 @@ export default function App() {
     settings.fontSizePt,
     settings.doubleSided,
     settings.backMode,
+    settings.lineHeight,
+    settings.cueEmphasis,
     metrics.contentWidthPx,
     metrics.contentHeightPx,
   ])
@@ -135,6 +152,10 @@ export default function App() {
     showMax: settings.showMax,
     numberPosition: settings.numberPosition,
     totalCards: result.totalCards,
+    theme,
+    lineHeight: settings.lineHeight,
+    textAlign: settings.textAlign,
+    cueEmphasis: settings.cueEmphasis,
   }
 
   const guides = {
@@ -164,6 +185,7 @@ export default function App() {
     doubleSided: settings.doubleSided,
     flipEdge: settings.flipEdge,
     guides,
+    backgroundColor: theme.bg,
   })
 
   const vectorParams = () => ({
@@ -181,6 +203,10 @@ export default function App() {
       showMax: settings.showMax,
       numberPosition: settings.numberPosition,
       totalCards: result.totalCards,
+      lineHeight: settings.lineHeight,
+      textAlign: settings.textAlign,
+      cueEmphasis: settings.cueEmphasis,
+      theme,
     },
   })
 
@@ -198,7 +224,7 @@ export default function App() {
         return (await buildPdf(rasterParams()))?.output('blob') ?? null
       },
       async pngZip(): Promise<Blob | null> {
-        return buildPngZipBlob(result.faces, getNodes())
+        return buildPngZipBlob(result.faces, getNodes(), theme.bg)
       },
     }
     return () => {
@@ -224,7 +250,7 @@ export default function App() {
     if (result.faces.length === 0) return
     setBusy('png')
     try {
-      await exportPngZip(result.faces, getNodes())
+      await exportPngZip(result.faces, getNodes(), theme.bg)
     } finally {
       setBusy(null)
     }
@@ -244,8 +270,19 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Cue-Card Generator</h1>
-        <p>Split text across printable cue cards and export a print-ready PDF.</p>
+        <div className="app-header-text">
+          <h1>Cue-Card Generator</h1>
+          <p>Split text across printable cue cards and export a print-ready PDF.</p>
+        </div>
+        <button
+          type="button"
+          className="ghost theme-toggle"
+          onClick={() => patch({ darkMode: !settings.darkMode })}
+          aria-pressed={settings.darkMode}
+          title={settings.darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {settings.darkMode ? '☀️ Light' : '🌙 Dark'}
+        </button>
       </header>
 
       <main className="layout">

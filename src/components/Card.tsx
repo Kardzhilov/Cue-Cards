@@ -1,7 +1,8 @@
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { CardFace, NumberPosition } from '../types'
+import type { CardFace, NumberPosition, TextAlign } from '../types'
 import { mmToPx, ptToPx } from '../lib/cardSizes'
+import type { CardTheme } from '../lib/cardThemes'
 
 export interface CardProps {
   face: CardFace
@@ -13,6 +14,10 @@ export interface CardProps {
   showMax: boolean
   numberPosition: NumberPosition
   totalCards: number
+  theme: CardTheme
+  lineHeight: number
+  textAlign: TextAlign
+  cueEmphasis: boolean
 }
 
 export function Card({
@@ -25,6 +30,10 @@ export function Card({
   showMax,
   numberPosition,
   totalCards,
+  theme,
+  lineHeight,
+  textAlign,
+  cueEmphasis,
 }: CardProps) {
   const label = showMax ? `${face.cardNumber}/${totalCards}` : `${face.cardNumber}`
   return (
@@ -36,9 +45,16 @@ export function Card({
         height: `${mmToPx(heightMm)}px`,
         padding: `${mmToPx(paddingMm)}px`,
         fontSize: `${ptToPx(fontSizePt)}px`,
+        lineHeight,
+        textAlign,
+        background: theme.bg,
+        color: theme.fg,
+        boxShadow: theme.border ? `inset 0 0 0 1px ${theme.border}` : 'none',
+        ['--notes-line' as string]: theme.border ?? '#dcdfe5',
+        ['--notes-label' as string]: theme.muted,
       }}
     >
-      <div className="card-content">
+      <div className={`card-content${cueEmphasis ? ' cue-emphasis' : ''}`}>
         {face.isNotes ? (
           <div className="card-notes" aria-label="Notes area">
             <span className="card-notes-label">Notes</span>
@@ -48,7 +64,11 @@ export function Card({
           <Markdown remarkPlugins={[remarkGfm]}>{face.markdown}</Markdown>
         )}
       </div>
-      {showNumbers && <span className={`card-number pos-${numberPosition}`}>{label}</span>}
+      {showNumbers && (
+        <span className={`card-number pos-${numberPosition}`} style={{ color: theme.muted }}>
+          {label}
+        </span>
+      )}
     </div>
   )
 }

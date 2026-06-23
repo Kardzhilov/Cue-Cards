@@ -1,5 +1,6 @@
-import type { CardFace, NumberPosition } from '../types'
+import type { CardFace, NumberPosition, TextAlign } from '../types'
 import { mmToPx } from '../lib/cardSizes'
+import type { CardTheme } from '../lib/cardThemes'
 import { Card } from './Card'
 
 const PREVIEW_CARD_WIDTH_PX = 240
@@ -15,6 +16,10 @@ export interface CardPreviewProps {
   numberPosition: NumberPosition
   totalCards: number
   doubleSided: boolean
+  theme: CardTheme
+  lineHeight: number
+  textAlign: TextAlign
+  cueEmphasis: boolean
 }
 
 export function CardPreview(props: CardPreviewProps) {

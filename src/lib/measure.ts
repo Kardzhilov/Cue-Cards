@@ -4,6 +4,8 @@ import { markdownToHtml } from './markdownToHtml'
 export interface MeasureOptions {
   contentWidthPx: number
   fontSizePx: number
+  lineHeight?: number
+  cueEmphasis?: boolean
 }
 
 let container: HTMLDivElement | null = null
@@ -39,6 +41,8 @@ export function measureMarkdownHeight(markdown: string, opts: MeasureOptions): n
   const el = getContainer()
   el.style.width = `${opts.contentWidthPx}px`
   el.style.fontSize = `${opts.fontSizePx}px`
+  el.style.lineHeight = String(opts.lineHeight ?? CARD_LINE_HEIGHT)
+  el.classList.toggle('cue-emphasis', !!opts.cueEmphasis)
   el.innerHTML = markdownToHtml(markdown)
   return el.scrollHeight
 }

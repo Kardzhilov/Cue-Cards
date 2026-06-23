@@ -1,4 +1,4 @@
-import type { NumberPosition, Settings } from '../types'
+import type { NumberPosition, Settings, TextAlign } from '../types'
 import {
   CARD_SIZES,
   CUSTOM_SIZE_ID,
@@ -6,6 +6,7 @@ import {
   metricLabel,
   mmToIn,
 } from '../lib/cardSizes'
+import { CARD_THEMES } from '../lib/cardThemes'
 
 export interface SettingsPanelProps {
   settings: Settings
@@ -170,6 +171,55 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           <option value="a4">A4</option>
           <option value="letter">US Letter</option>
         </select>
+      </label>
+
+      <h3 className="settings-subhead">Style</h3>
+
+      <label className="field">
+        <span>Card theme</span>
+        <select
+          value={settings.themeId}
+          onChange={(e) => onChange({ themeId: e.target.value })}
+        >
+          {CARD_THEMES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="field">
+        <span>Line height: {settings.lineHeight.toFixed(2)}</span>
+        <input
+          type="range"
+          min={1}
+          max={2}
+          step={0.05}
+          value={settings.lineHeight}
+          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
+        />
+      </label>
+
+      <label className="field">
+        <span>Text alignment</span>
+        <select
+          value={settings.textAlign}
+          onChange={(e) => onChange({ textAlign: e.target.value as TextAlign })}
+        >
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="justify">Justify</option>
+        </select>
+      </label>
+
+      <label className="field checkbox">
+        <input
+          type="checkbox"
+          checked={settings.cueEmphasis}
+          onChange={(e) => onChange({ cueEmphasis: e.target.checked })}
+        />
+        <span>Emphasise first line (cue)</span>
       </label>
 
       <h3 className="settings-subhead">Output</h3>

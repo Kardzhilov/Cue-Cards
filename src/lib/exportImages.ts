@@ -14,9 +14,13 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 /** Capture each card face as a PNG and bundle them into a zip blob. */
-export async function buildPngZipBlob(faces: CardFace[], nodes: HTMLElement[]): Promise<Blob | null> {
+export async function buildPngZipBlob(
+  faces: CardFace[],
+  nodes: HTMLElement[],
+  backgroundColor?: string,
+): Promise<Blob | null> {
   if (faces.length === 0) return null
-  const urls = await captureNodes(nodes)
+  const urls = await captureNodes(nodes, backgroundColor)
   const zip = new JSZip()
   urls.forEach((url, i) => {
     const face = faces[i]
@@ -29,7 +33,11 @@ export async function buildPngZipBlob(faces: CardFace[], nodes: HTMLElement[]): 
 }
 
 /** Capture each card face as a PNG and download them bundled in a zip. */
-export async function exportPngZip(faces: CardFace[], nodes: HTMLElement[]): Promise<void> {
-  const blob = await buildPngZipBlob(faces, nodes)
+export async function exportPngZip(
+  faces: CardFace[],
+  nodes: HTMLElement[],
+  backgroundColor?: string,
+): Promise<void> {
+  const blob = await buildPngZipBlob(faces, nodes, backgroundColor)
   if (blob) downloadBlob(blob, 'cue-cards-png.zip')
 }

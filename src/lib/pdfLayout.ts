@@ -135,10 +135,10 @@ export function renderSheets<T>(p: RenderSheetsParams<T>): void {
     newPage()
     sheetCards.forEach((card, slot) => {
       const { x, y } = cell(slot)
-      drawGuides(p.pdf, x, y, p.cardWidthMm, p.cardHeightMm, p.guides)
       if (card.front !== undefined) {
         p.drawContent(card.front, x, y, p.cardWidthMm, p.cardHeightMm)
       }
+      drawGuides(p.pdf, x, y, p.cardWidthMm, p.cardHeightMm, p.guides)
     })
 
     if (!p.doubleSided) continue
@@ -151,10 +151,10 @@ export function renderSheets<T>(p: RenderSheetsParams<T>): void {
       const mRow = p.flipEdge === 'short' ? grid.rows - 1 - row : row
       const x = grid.startX + mCol * p.cardWidthMm
       const y = grid.startY + mRow * p.cardHeightMm
-      drawGuides(p.pdf, x, y, p.cardWidthMm, p.cardHeightMm, p.guides)
       if (card.back !== undefined) {
         p.drawContent(card.back, x, y, p.cardWidthMm, p.cardHeightMm)
       }
+      drawGuides(p.pdf, x, y, p.cardWidthMm, p.cardHeightMm, p.guides)
     })
   }
 }

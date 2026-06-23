@@ -7,6 +7,8 @@ export interface SplitOptions {
   fontSizePx: number
   doubleSided: boolean
   backMode: BackMode
+  lineHeight: number
+  cueEmphasis: boolean
 }
 
 export interface SplitResult {
@@ -134,6 +136,8 @@ function packFaces(units: Unit[], opts: SplitOptions): { text: string; overflow:
     measureMarkdownHeight(text, {
       contentWidthPx: opts.contentWidthPx,
       fontSizePx: opts.fontSizePx,
+      lineHeight: opts.lineHeight,
+      cueEmphasis: opts.cueEmphasis,
     }) <= opts.contentHeightPx
 
   while (queue.length > 0) {

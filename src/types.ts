@@ -18,6 +18,9 @@ export type BackMode = 'continue' | 'notes'
 /** How the PDF is rendered. */
 export type PdfMode = 'raster' | 'vector'
 
+/** Text alignment for card body content. */
+export type TextAlign = 'left' | 'center' | 'justify'
+
 /** A physical card size in millimetres (the canonical unit). */
 export interface CardSize {
   id: string
@@ -52,6 +55,16 @@ export interface Settings {
   showSafeArea: boolean
   /** Draw corner crop marks around each card. */
   showCropMarks: boolean
+  /** Card theme id (colours/border). */
+  themeId: string
+  /** App UI dark mode. */
+  darkMode: boolean
+  /** Body line height multiplier. */
+  lineHeight: number
+  /** Body text alignment. */
+  textAlign: TextAlign
+  /** Emphasise (bold) the first line of each card as a quick cue. */
+  cueEmphasis: boolean
 }
 
 /** One printable face (front or back) belonging to a numbered physical card. */

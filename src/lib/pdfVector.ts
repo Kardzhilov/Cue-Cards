@@ -1,11 +1,11 @@
 import { jsPDF } from 'jspdf'
 import { marked, type Token, type Tokens } from 'marked'
-import type { CardFace, FlipEdge, NumberPosition, SheetSize } from '../types'
+import type { CardFace, FlipEdge, NumberPosition, SheetSize, TextAlign } from '../types'
 import { SHEET_SIZES } from './cardSizes'
+import { hexToRgb, type CardTheme } from './cardThemes'
 import { groupByCard, renderSheets, type GuideOptions, type SheetCard } from './pdfLayout'
 
 const PT_TO_MM = 25.4 / 72
-const LINE_FACTOR = 1.35
 const NUMBER_PT = 9
 
 const HEADING_SCALE: Record<number, number> = { 1: 1.6, 2: 1.35, 3: 1.18, 4: 1.05, 5: 1, 6: 1 }
@@ -17,6 +17,19 @@ export interface VectorPdfStyle {
   showMax: boolean
   numberPosition: NumberPosition
   totalCards: number
+  lineHeight: number
+  textAlign: TextAlign
+  cueEmphasis: boolean
+  theme: CardTheme
+}
+
+type Rgb = { r: number; g: number; b: number }
+
+interface DrawOpts {
+  lineHeight: number
+  align: TextAlign
+  color: Rgb
+  emphasizeFirstLine?: boolean
 }
 
 export interface GenerateVectorPdfParams {
@@ -84,8 +97,9 @@ function decode(s: string): string {
 }
 
 /**
- * Draw styled runs with word wrapping. Returns the y position after the block.
- * Stops drawing once `maxY` is exceeded to avoid spilling onto the next card.
+ * Draw styled runs with word wrapping, alignment and line height. Returns the y
+ * position after the block. Stops drawing once `maxY` is exceeded so content
+ * never spills onto the next card.
  */
 function drawRuns(
   pdf: jsPDF,
@@ -95,43 +109,76 @@ function drawRuns(
   maxW: number,
   maxY: number,
   fontPt: number,
+  o: DrawOpts,
 ): number {
-  const lineH = fontPt * PT_TO_MM * LINE_FACTOR
-  let x = startX
+  const lineH = fontPt * PT_TO_MM * o.lineHeight
   let y = startY
+  let lineIndex = 0
+
+  interface Placed {
+    text: string
+    run: Run
+    width: number
+  }
+  let line: Placed[] = []
+  let lineContentW = 0
 
   const setFont = (r: Run) => {
     pdf.setFont(r.mono ? 'courier' : 'helvetica', fontStyle(r.bold, r.italic))
     pdf.setFontSize(fontPt)
   }
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(fontPt)
+  const spaceW = pdf.getTextWidth(' ')
+
+  const flush = (isLast: boolean) => {
+    const n = line.length
+    if (n === 0) {
+      y += lineH
+      lineIndex++
+      return
+    }
+    if (y <= maxY) {
+      const emphasize = !!o.emphasizeFirstLine && lineIndex === 0
+      const spaces = n - 1
+      const naturalW = lineContentW + spaces * spaceW
+      let x = startX
+      let extra = 0
+      if (o.align === 'center') x = startX + Math.max(0, (maxW - naturalW) / 2)
+      else if (o.align === 'justify' && !isLast && spaces > 0) extra = (maxW - naturalW) / spaces
+      pdf.setTextColor(o.color.r, o.color.g, o.color.b)
+      for (let i = 0; i < n; i++) {
+        const wd = line[i]
+        setFont(emphasize ? { ...wd.run, bold: true } : wd.run)
+        pdf.text(wd.text, x, y, { baseline: 'top' })
+        x += wd.width + (i < spaces ? spaceW + extra : 0)
+      }
+    }
+    y += lineH
+    lineIndex++
+    line = []
+    lineContentW = 0
+  }
+
+  const pushWord = (word: string, run: Run) => {
+    setFont(run)
+    const w = pdf.getTextWidth(word)
+    const tentative = lineContentW + (line.length > 0 ? spaceW : 0) + w
+    if (line.length > 0 && tentative > maxW) flush(false)
+    line.push({ text: word, run, width: w })
+    lineContentW += w
+  }
 
   for (const run of runs) {
-    const segments = run.text.split('\n')
-    segments.forEach((seg, si) => {
-      if (si > 0) {
-        x = startX
-        y += lineH
-      }
-      const words = seg.split(/(\s+)/).filter((w) => w.length > 0)
-      for (const word of words) {
-        if (/^\s+$/.test(word)) {
-          setFont(run)
-          x += pdf.getTextWidth(' ')
-          continue
-        }
-        setFont(run)
-        const w = pdf.getTextWidth(word)
-        if (x + w > startX + maxW && x > startX) {
-          x = startX
-          y += lineH
-        }
-        if (y > maxY) return
-        pdf.text(word, x, y, { baseline: 'top' })
-        x += w
-      }
+    const parts = run.text.split('\n')
+    parts.forEach((seg, si) => {
+      if (si > 0) flush(false)
+      const words = seg.split(/\s+/).filter(Boolean)
+      for (const word of words) pushWord(word, run)
     })
   }
-  return y + lineH
+  if (line.length > 0) flush(true)
+  return y
 }
 
 function drawBlocks(
@@ -142,10 +189,15 @@ function drawBlocks(
   w: number,
   maxY: number,
   bodyPt: number,
+  ctx: { lineHeight: number; align: TextAlign; color: Rgb; cueEmphasis: boolean },
 ): void {
   const tokens = marked.lexer(markdown)
   let cursorY = y
   const paraGap = bodyPt * PT_TO_MM * 0.5
+  let firstContent = ctx.cueEmphasis
+
+  const base: DrawOpts = { lineHeight: ctx.lineHeight, align: ctx.align, color: ctx.color }
+  const leftBase: DrawOpts = { lineHeight: ctx.lineHeight, align: 'left', color: ctx.color }
 
   for (const token of tokens) {
     if (cursorY > maxY) break
@@ -154,10 +206,12 @@ function drawBlocks(
     if (t.type === 'heading') {
       const pt = bodyPt * (HEADING_SCALE[(t as Tokens.Heading).depth] ?? 1)
       const runs = inlineToRuns(t.tokens, true, false)
-      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, pt) + paraGap * 0.6
+      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, pt, { ...base, emphasizeFirstLine: firstContent }) + paraGap * 0.6
+      firstContent = false
     } else if (t.type === 'paragraph' || t.type === 'text') {
-      const runs = inlineToRuns(t.tokens ?? [{ type: 'text', text: t.text }] as Token[], false, false)
-      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt) + paraGap
+      const runs = inlineToRuns(t.tokens ?? ([{ type: 'text', text: t.text }] as Token[]), false, false)
+      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt, { ...base, emphasizeFirstLine: firstContent }) + paraGap
+      firstContent = false
     } else if (t.type === 'list') {
       const list = t as Tokens.List
       list.items.forEach((item, idx) => {
@@ -165,11 +219,13 @@ function drawBlocks(
         const marker = list.ordered ? `${(Number(list.start) || 1) + idx}.` : '•'
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(bodyPt)
+        pdf.setTextColor(ctx.color.r, ctx.color.g, ctx.color.b)
         pdf.text(marker, x, cursorY, { baseline: 'top' })
         const indent = pdf.getTextWidth(list.ordered ? '00. ' : '• ')
         const runs = inlineToRuns(item.tokens, false, false)
-        cursorY = drawRuns(pdf, runs, x + indent, cursorY, w - indent, maxY, bodyPt) + paraGap * 0.3
+        cursorY = drawRuns(pdf, runs, x + indent, cursorY, w - indent, maxY, bodyPt, leftBase) + paraGap * 0.3
       })
+      firstContent = false
       cursorY += paraGap * 0.5
     } else if (t.type === 'code') {
       const lines = (t.text ?? '').split('\n')
@@ -179,10 +235,12 @@ function drawBlocks(
         italic: false,
         mono: true,
       }))
-      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt) + paraGap
+      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt, leftBase) + paraGap
+      firstContent = false
     } else if (t.type === 'blockquote') {
       const runs = inlineToRuns(t.tokens, false, true)
-      cursorY = drawRuns(pdf, runs, x + 3, cursorY, w - 3, maxY, bodyPt) + paraGap
+      cursorY = drawRuns(pdf, runs, x + 3, cursorY, w - 3, maxY, bodyPt, leftBase) + paraGap
+      firstContent = false
     } else if (t.type === 'space') {
       cursorY += paraGap
     }
@@ -197,10 +255,11 @@ function drawNumber(
   w: number,
   h: number,
   pos: NumberPosition,
+  color: Rgb,
 ): void {
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(NUMBER_PT)
-  pdf.setTextColor(110)
+  pdf.setTextColor(color.r, color.g, color.b)
   const tw = pdf.getTextWidth(label)
   const m = 2
   const [vert, horiz] = pos.split('-')
@@ -212,13 +271,15 @@ function drawNumber(
   pdf.setTextColor(0)
 }
 
-function drawNotes(pdf: jsPDF, x: number, y: number, w: number, h: number): void {
+function drawNotes(pdf: jsPDF, x: number, y: number, w: number, h: number, theme: CardTheme): void {
+  const muted = hexToRgb(theme.muted)
+  const lineCol = hexToRgb(theme.border ?? '#d7dadf')
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(11)
-  pdf.setTextColor(160)
+  pdf.setTextColor(muted.r, muted.g, muted.b)
   pdf.text('Notes', x, y, { baseline: 'top' })
   pdf.setTextColor(0)
-  pdf.setDrawColor(215)
+  pdf.setDrawColor(lineCol.r, lineCol.g, lineCol.b)
   pdf.setLineWidth(0.1)
   const lineGap = 8
   for (let ly = y + 10; ly < y + h; ly += lineGap) {
@@ -238,6 +299,10 @@ export function buildVectorPdf(params: GenerateVectorPdfParams): jsPDF | null {
     : faces.map((f) => ({ front: f }))
 
   const pad = style.paddingMm
+  const fg = hexToRgb(style.theme.fg)
+  const muted = hexToRgb(style.theme.muted)
+  const bg = hexToRgb(style.theme.bg)
+  const borderRgb = style.theme.border ? hexToRgb(style.theme.border) : null
 
   renderSheets({
     pdf,
@@ -249,18 +314,32 @@ export function buildVectorPdf(params: GenerateVectorPdfParams): jsPDF | null {
     guides,
     cards,
     drawContent: (face, x, y, w, h) => {
+      // Theme background + optional border.
+      pdf.setFillColor(bg.r, bg.g, bg.b)
+      pdf.rect(x, y, w, h, 'F')
+      if (borderRgb) {
+        pdf.setDrawColor(borderRgb.r, borderRgb.g, borderRgb.b)
+        pdf.setLineWidth(0.2)
+        pdf.rect(x, y, w, h)
+      }
+
       const cx = x + pad
       const cy = y + pad
       const cw = w - 2 * pad
       const maxY = y + h - pad
       if (face.isNotes) {
-        drawNotes(pdf, cx, cy, cw, h - 2 * pad)
+        drawNotes(pdf, cx, cy, cw, h - 2 * pad, style.theme)
       } else {
-        drawBlocks(pdf, face.markdown, cx, cy, cw, maxY, style.fontSizePt)
+        drawBlocks(pdf, face.markdown, cx, cy, cw, maxY, style.fontSizePt, {
+          lineHeight: style.lineHeight,
+          align: style.textAlign,
+          color: fg,
+          cueEmphasis: style.cueEmphasis,
+        })
       }
       if (style.showNumbers) {
         const label = style.showMax ? `${face.cardNumber}/${style.totalCards}` : `${face.cardNumber}`
-        drawNumber(pdf, label, x, y, w, h, style.numberPosition)
+        drawNumber(pdf, label, x, y, w, h, style.numberPosition, muted)
       }
     },
   })

@@ -6,8 +6,22 @@
   --muted: #6b7280;
   --accent: #2f6fed;
   --accent-hover: #2559c9;
+  --input-bg: #ffffff;
+  --chip-bg: #eef1f6;
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
+}
+
+:root[data-theme='dark'] {
+  --bg: #12151c;
+  --panel: #1b1f29;
+  --border: #2c323e;
+  --text: #e6e9ef;
+  --muted: #9aa3b2;
+  --accent: #5b8cff;
+  --accent-hover: #7aa2ff;
+  --input-bg: #232834;
+  --chip-bg: #232834;
 }
 
 * {
@@ -17,6 +31,7 @@
 body {
   margin: 0;
   background: var(--bg);
+  color: var(--text);
 }
 
 .app {
@@ -25,14 +40,27 @@ body {
   padding: 24px 20px 64px;
 }
 
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
 .app-header h1 {
   margin: 0 0 4px;
   font-size: 1.6rem;
 }
 
 .app-header p {
-  margin: 0 0 20px;
+  margin: 0;
   color: var(--muted);
+}
+
+.theme-toggle {
+  flex: none;
+  white-space: nowrap;
 }
 
 .layout {
@@ -82,7 +110,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   font: inherit;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
 }
 
@@ -154,7 +182,7 @@ body {
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
   font: inherit;
   font-size: 0.85rem;
@@ -162,7 +190,7 @@ body {
 }
 
 .ghost:hover:not(:disabled) {
-  background: #eef1f6;
+  background: var(--chip-bg);
 }
 
 .ghost:disabled {
@@ -185,7 +213,7 @@ body {
   padding: 12px 14px;
   border: 1px solid var(--accent);
   border-radius: 8px;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--accent);
   font-size: 0.95rem;
   font-weight: 600;
@@ -193,7 +221,7 @@ body {
 }
 
 .secondary:hover:not(:disabled) {
-  background: #eef3ff;
+  background: var(--chip-bg);
 }
 
 .secondary:disabled {
@@ -215,7 +243,7 @@ body {
   gap: 14px;
   margin: 4px 0 14px;
   padding: 8px 12px;
-  background: #eef1f6;
+  background: var(--chip-bg);
   border-radius: 6px;
   font-size: 0.82rem;
   color: var(--muted);
@@ -293,9 +321,12 @@ body {
 
 .card-content {
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.35;
   overflow-wrap: break-word;
   word-break: normal;
+}
+
+.card-content.cue-emphasis > :first-child::first-line {
+  font-weight: 700;
 }
 
 .card-content > :first-child {
@@ -337,7 +368,7 @@ body {
 
 .card-notes-label {
   display: block;
-  color: #9aa3af;
+  color: var(--notes-label, #9aa3af);
   font-size: 0.9em;
   margin-bottom: 0.5em;
 }
@@ -348,8 +379,8 @@ body {
     to bottom,
     transparent 0,
     transparent calc(1.6em - 1px),
-    #dcdfe5 calc(1.6em - 1px),
-    #dcdfe5 1.6em
+    var(--notes-line, #dcdfe5) calc(1.6em - 1px),
+    var(--notes-line, #dcdfe5) 1.6em
   );
 }
 

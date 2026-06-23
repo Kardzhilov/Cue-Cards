@@ -14,16 +14,21 @@ export interface GeneratePdfParams {
   doubleSided: boolean
   flipEdge: FlipEdge
   guides: GuideOptions
+  /** Card background colour (theme) used as the capture backdrop. */
+  backgroundColor?: string
 }
 
 const CAPTURE_SCALE = 3
 
-export async function captureNodes(nodes: HTMLElement[]): Promise<string[]> {
+export async function captureNodes(
+  nodes: HTMLElement[],
+  backgroundColor = '#ffffff',
+): Promise<string[]> {
   const urls: string[] = []
   for (const node of nodes) {
     const canvas = await html2canvas(node, {
       scale: CAPTURE_SCALE,
-      backgroundColor: '#ffffff',
+      backgroundColor,
       logging: false,
     })
     urls.push(canvas.toDataURL('image/png'))
@@ -36,7 +41,7 @@ export async function buildPdf(params: GeneratePdfParams): Promise<jsPDF | null>
   if (faces.length === 0) return null
 
   const sheet = SHEET_SIZES[sheetSize]
-  const urls = await captureNodes(nodes)
+  const urls = await captureNodes(nodes, params.backgroundColor)
 
   const pdf = new jsPDF({ unit: 'mm', format: [sheet.widthMm, sheet.heightMm], orientation: 'portrait' })
 
