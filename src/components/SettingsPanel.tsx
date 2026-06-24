@@ -93,16 +93,19 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         />
       </label>
 
-      <label className="field checkbox">
-        <input
-          type="checkbox"
-          checked={settings.doubleSided}
-          onChange={(e) => onChange({ doubleSided: e.target.checked })}
-        />
-        <span>Double-sided</span>
+      <label className="field">
+        <span>Sides</span>
+        <select
+          value={settings.sides}
+          onChange={(e) => onChange({ sides: e.target.value as Settings['sides'] })}
+        >
+          <option value="single">Single-sided</option>
+          <option value="double">Double-sided (duplex)</option>
+          <option value="fold">Fold &amp; glue</option>
+        </select>
       </label>
 
-      {settings.doubleSided && (
+      {settings.sides === 'double' && (
         <>
           <label className="field">
             <span>Back content</span>
@@ -124,6 +127,55 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
               <option value="short">Short edge</option>
             </select>
           </label>
+        </>
+      )}
+
+      {settings.sides === 'fold' && (
+        <>
+          <p className="field-note">
+            Prints each card as one panel: the back is placed above the front and rotated 180° so it
+            reads upright once you fold along the crease and glue.
+          </p>
+          <label className="field">
+            <span>Back content</span>
+            <select
+              value={settings.foldBackKind}
+              onChange={(e) => onChange({ foldBackKind: e.target.value as Settings['foldBackKind'] })}
+            >
+              <option value="blank">Blank</option>
+              <option value="text">Text (same on every card)</option>
+              <option value="graphic">Graphic (same on every card)</option>
+            </select>
+          </label>
+          {settings.foldBackKind === 'text' && (
+            <label className="field">
+              <span>Back text</span>
+              <textarea
+                rows={2}
+                value={settings.foldBackText}
+                onChange={(e) => onChange({ foldBackText: e.target.value })}
+                placeholder="e.g. a title, name, or logo text"
+              />
+            </label>
+          )}
+          {settings.foldBackKind === 'graphic' && (
+            <label className="field">
+              <span>Back graphic</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => onChange({ foldBackImage: String(reader.result) })
+                  reader.readAsDataURL(file)
+                  e.target.value = ''
+                }}
+              />
+              {settings.foldBackImage && <small>Image loaded ✓</small>}
+            </label>
+          )}
         </>
       )}
 

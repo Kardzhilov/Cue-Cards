@@ -27,7 +27,8 @@ split intelligently across cards so it _never_ breaks in the middle of a sentenc
 | ⏭️ **Manual breaks** | Drop a horizontal rule (`---`) anywhere to force a new card. |
 | 📐 **Flexible sizes** | A7, A6, Index 3×5 / 4×6 / 5×8, or custom — shown in **metric & imperial**. |
 | 🔄 **Single or double-sided** | Continue text onto the back, or add a blank **notes** back. |
-| 🖨️ **Duplex-aware** | Choose long- or short-edge flip so the backs line up when printing. |
+| � **Fold &amp; glue** | Print each card as one panel with the back rotated 180° — fold over the crease and glue. The back can be a shared **graphic**, **text**, or **blank**. |
+| �🖨️ **Duplex-aware** | Choose long- or short-edge flip so the backs line up when printing. |
 | 🔢 **Card numbers** | Optional, position anywhere, as `current` or `current / max`. |
 | 🎨 **Card themes** | Minimal, Bordered, Paper, Slate, Highlighter — default is clean white. |
 | 🌙 **Dark mode** | A comfortable dark UI for the editor (independent of the card theme). |

@@ -15,6 +15,12 @@ export type Orientation = 'portrait' | 'landscape'
 /** What the back of each card holds when double-sided is enabled. */
 export type BackMode = 'continue' | 'notes'
 
+/** Card construction: one-sided, duplex two-sided, or a fold-and-glue panel. */
+export type Sides = 'single' | 'double' | 'fold'
+
+/** What the (uniform) back holds in fold-and-glue mode. */
+export type FoldBackKind = 'blank' | 'text' | 'graphic'
+
 /** How the PDF is rendered. */
 export type PdfMode = 'raster' | 'vector'
 
@@ -39,7 +45,8 @@ export interface Settings {
   customHeightMm: number
   orientation: Orientation
   fontSizePt: number
-  doubleSided: boolean
+  /** Card construction mode. */
+  sides: Sides
   /** Back content style when double-sided. */
   backMode: BackMode
   flipEdge: FlipEdge
@@ -65,6 +72,12 @@ export interface Settings {
   textAlign: TextAlign
   /** Emphasise (bold) the first line of each card as a quick cue. */
   cueEmphasis: boolean
+  /** Fold-and-glue back content kind. */
+  foldBackKind: FoldBackKind
+  /** Text shown on every back in fold mode (when foldBackKind === 'text'). */
+  foldBackText: string
+  /** Data-URL image shown on every back in fold mode (when foldBackKind === 'graphic'). */
+  foldBackImage: string | null
 }
 
 /** One printable face (front or back) belonging to a numbered physical card. */

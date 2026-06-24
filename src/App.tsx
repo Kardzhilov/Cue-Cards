@@ -9,6 +9,7 @@ import { exportPngZip, buildPngZipBlob } from './lib/exportImages'
 import { useHistory } from './hooks/useHistory'
 import { getTheme, DEFAULT_THEME_ID } from './lib/cardThemes'
 import { Card } from './components/Card'
+import { FoldPanel } from './components/FoldPanel'
 import { CardPreview } from './components/CardPreview'
 import { SettingsPanel } from './components/SettingsPanel'
 import { StatsBar } from './components/StatsBar'
@@ -34,7 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   customHeightMm: 140,
   orientation: 'landscape',
   fontSizePt: 16,
-  doubleSided: false,
+  sides: 'single',
   backMode: 'continue',
   flipEdge: 'long',
   showNumbers: true,
@@ -50,6 +51,9 @@ const DEFAULT_SETTINGS: Settings = {
   lineHeight: 1.35,
   textAlign: 'left',
   cueEmphasis: false,
+  foldBackKind: 'blank',
+  foldBackText: '',
+  foldBackImage: null,
 }
 
 const ACCEPTED_FILES = '.txt,.md,.markdown,text/plain,text/markdown'
@@ -93,6 +97,9 @@ export default function App() {
 
   const theme = useMemo(() => getTheme(settings.themeId), [settings.themeId])
 
+  const doubleSided = settings.sides === 'double'
+  const fold = settings.sides === 'fold'
+
   // Apply app dark mode to the document root.
   useEffect(() => {
     document.documentElement.dataset.theme = settings.darkMode ? 'dark' : 'light'
@@ -106,7 +113,7 @@ export default function App() {
           contentWidthPx: metrics.contentWidthPx,
           contentHeightPx: metrics.contentHeightPx,
           fontSizePx: fontSizePx(settings.fontSizePt),
-          doubleSided: settings.doubleSided,
+          doubleSided,
           backMode: settings.backMode,
           lineHeight: settings.lineHeight,
           cueEmphasis: settings.cueEmphasis,
@@ -117,7 +124,7 @@ export default function App() {
   }, [
     settings.text,
     settings.fontSizePt,
-    settings.doubleSided,
+    doubleSided,
     settings.backMode,
     settings.lineHeight,
     settings.cueEmphasis,
@@ -176,15 +183,18 @@ export default function App() {
   }, [settings.text])
 
   const getNodes = () =>
-    printRef.current ? Array.from(printRef.current.querySelectorAll<HTMLElement>('[data-card]')) : []
+    printRef.current
+      ? Array.from(printRef.current.querySelectorAll<HTMLElement>(':scope > [data-card]'))
+      : []
 
   const rasterParams = () => ({
     faces: result.faces,
     nodes: getNodes(),
     cardWidthMm: widthMm,
-    cardHeightMm: heightMm,
+    // In fold mode each captured node is a double-height panel (front + rotated back).
+    cardHeightMm: fold ? heightMm * 2 : heightMm,
     sheetSize: settings.sheetSize,
-    doubleSided: settings.doubleSided,
+    doubleSided: fold ? false : doubleSided,
     flipEdge: settings.flipEdge,
     guides,
     backgroundColor: theme.bg,
@@ -195,7 +205,7 @@ export default function App() {
     cardWidthMm: widthMm,
     cardHeightMm: heightMm,
     sheetSize: settings.sheetSize,
-    doubleSided: settings.doubleSided,
+    doubleSided,
     flipEdge: settings.flipEdge,
     guides,
     style: {
@@ -220,7 +230,7 @@ export default function App() {
     w.__cueCardsTest = {
       async pdf(): Promise<Blob | null> {
         if (result.faces.length === 0) return null
-        if (settings.pdfMode === 'vector') {
+        if (settings.pdfMode === 'vector' && !fold) {
           return buildVectorPdf(vectorParams())?.output('blob') ?? null
         }
         return (await buildPdf(rasterParams()))?.output('blob') ?? null
@@ -238,7 +248,8 @@ export default function App() {
     if (result.faces.length === 0) return
     setBusy('pdf')
     try {
-      if (settings.pdfMode === 'vector') {
+      // Fold mode always uses the raster panel pipeline (rotated back baked in).
+      if (settings.pdfMode === 'vector' && !fold) {
         generateVectorPdf(vectorParams())
       } else {
         await generatePdf(rasterParams())
@@ -348,7 +359,7 @@ export default function App() {
             chars={stats.chars}
             faceCount={result.faces.length}
             cardCount={result.totalCards}
-            doubleSided={settings.doubleSided}
+            doubleSided={doubleSided}
             overflowCount={result.overflowCount}
           />
 
@@ -377,15 +388,34 @@ export default function App() {
 
         <section className="panel preview-panel" aria-label="Card preview">
           <h2>Preview</h2>
-          <CardPreview {...cardProps} faces={result.faces} doubleSided={settings.doubleSided} />
+          <CardPreview
+            {...cardProps}
+            faces={result.faces}
+            doubleSided={doubleSided}
+            fold={fold}
+            foldBackKind={settings.foldBackKind}
+            foldBackText={settings.foldBackText}
+            foldBackImage={settings.foldBackImage}
+          />
         </section>
       </main>
 
       {/* Off-screen full-size cards used as the source for PDF/PNG rasterization. */}
       <div className="print-root" ref={printRef} aria-hidden="true">
-        {result.faces.map((face, i) => (
-          <Card key={i} {...cardProps} face={face} />
-        ))}
+        {result.faces.map((face, i) =>
+          fold ? (
+            <FoldPanel
+              key={i}
+              {...cardProps}
+              face={face}
+              foldBackKind={settings.foldBackKind}
+              foldBackText={settings.foldBackText}
+              foldBackImage={settings.foldBackImage}
+            />
+          ) : (
+            <Card key={i} {...cardProps} face={face} />
+          ),
+        )}
       </div>
     </div>
   )
