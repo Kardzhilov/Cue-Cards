@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf'
 import { marked, type Token, type Tokens } from 'marked'
 import type { CardFace, FlipEdge, NumberPosition, SheetSize, TextAlign } from '../types'
-import { SHEET_SIZES } from './cardSizes'
+import { SHEET_SIZES, mmToPx, ptToPx } from './cardSizes'
 import { hexToRgb, type CardTheme } from './cardThemes'
-import { applyCueEmphasis } from './cueEmphasis'
+import { boldLeadingChars } from './cueEmphasis'
 import { groupByCard, renderSheets, type GuideOptions, type SheetCard } from './pdfLayout'
 
 const PT_TO_MM = 25.4 / 72
@@ -188,9 +188,9 @@ function drawBlocks(
   w: number,
   maxY: number,
   bodyPt: number,
-  ctx: { lineHeight: number; align: TextAlign; color: Rgb; cueEmphasis: boolean },
+  ctx: { lineHeight: number; align: TextAlign; color: Rgb },
 ): void {
-  const tokens = marked.lexer(ctx.cueEmphasis ? applyCueEmphasis(markdown) : markdown)
+  const tokens = marked.lexer(markdown)
   let cursorY = y
   const paraGap = bodyPt * PT_TO_MM * 0.5
 
@@ -296,6 +296,8 @@ export function buildVectorPdf(params: GenerateVectorPdfParams): jsPDF | null {
   const muted = hexToRgb(style.theme.muted)
   const bg = hexToRgb(style.theme.bg)
   const borderRgb = style.theme.border ? hexToRgb(style.theme.border) : null
+  const contentWidthPx = mmToPx(cardWidthMm - 2 * pad)
+  const fontSizePx = ptToPx(style.fontSizePt)
 
   renderSheets({
     pdf,
@@ -323,11 +325,13 @@ export function buildVectorPdf(params: GenerateVectorPdfParams): jsPDF | null {
       if (face.isNotes) {
         drawNotes(pdf, cx, cy, cw, h - 2 * pad, style.theme)
       } else {
-        drawBlocks(pdf, face.markdown, cx, cy, cw, maxY, style.fontSizePt, {
+        const md = style.cueEmphasis
+          ? boldLeadingChars(face.markdown, contentWidthPx, fontSizePx)
+          : face.markdown
+        drawBlocks(pdf, md, cx, cy, cw, maxY, style.fontSizePt, {
           lineHeight: style.lineHeight,
           align: style.textAlign,
           color: fg,
-          cueEmphasis: style.cueEmphasis,
         })
       }
       if (style.showNumbers) {

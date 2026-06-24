@@ -1,5 +1,5 @@
 import { CARD_FONT_FAMILY, CARD_LINE_HEIGHT } from './cardStyle'
-import { applyCueEmphasis } from './cueEmphasis'
+import { emphasizeHtml } from './cueEmphasis'
 import { markdownToHtml } from './markdownToHtml'
 
 export interface MeasureOptions {
@@ -43,8 +43,10 @@ export function measureMarkdownHeight(markdown: string, opts: MeasureOptions): n
   el.style.width = `${opts.contentWidthPx}px`
   el.style.fontSize = `${opts.fontSizePx}px`
   el.style.lineHeight = String(opts.lineHeight ?? CARD_LINE_HEIGHT)
-  const md = opts.cueEmphasis ? applyCueEmphasis(markdown) : markdown
-  el.innerHTML = markdownToHtml(md)
+  const html = markdownToHtml(markdown)
+  el.innerHTML = opts.cueEmphasis
+    ? emphasizeHtml(html, opts.contentWidthPx, opts.fontSizePx)
+    : html
   return el.scrollHeight
 }
 

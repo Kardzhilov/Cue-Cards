@@ -1,9 +1,11 @@
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useMemo } from 'react'
 import type { CardFace, NumberPosition, TextAlign } from '../types'
 import { mmToPx, ptToPx } from '../lib/cardSizes'
 import type { CardTheme } from '../lib/cardThemes'
-import { applyCueEmphasis } from '../lib/cueEmphasis'
+import { emphasizeHtml } from '../lib/cueEmphasis'
+import { markdownToHtml } from '../lib/markdownToHtml'
 
 export interface CardProps {
   face: CardFace
@@ -44,6 +46,11 @@ export function Card({
   safeMarginMm,
 }: CardProps) {
   const label = showMax ? `${face.cardNumber}/${totalCards}` : `${face.cardNumber}`
+  const cueHtml = useMemo(() => {
+    if (!cueEmphasis || face.isNotes) return null
+    const contentWidthPx = mmToPx(widthMm) - 2 * mmToPx(paddingMm)
+    return emphasizeHtml(markdownToHtml(face.markdown), contentWidthPx, ptToPx(fontSizePt))
+  }, [cueEmphasis, face.isNotes, face.markdown, widthMm, paddingMm, fontSizePt])
   return (
     <div
       data-card
@@ -68,10 +75,10 @@ export function Card({
             <span className="card-notes-label">Notes</span>
             <div className="card-notes-lines" />
           </div>
+        ) : cueHtml != null ? (
+          <div dangerouslySetInnerHTML={{ __html: cueHtml }} />
         ) : (
-          <Markdown remarkPlugins={[remarkGfm]}>
-            {cueEmphasis ? applyCueEmphasis(face.markdown) : face.markdown}
-          </Markdown>
+          <Markdown remarkPlugins={[remarkGfm]}>{face.markdown}</Markdown>
         )}
       </div>
       {showGuidesOverlay && showSafeArea && (
