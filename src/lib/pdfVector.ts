@@ -3,6 +3,7 @@ import { marked, type Token, type Tokens } from 'marked'
 import type { CardFace, FlipEdge, NumberPosition, SheetSize, TextAlign } from '../types'
 import { SHEET_SIZES } from './cardSizes'
 import { hexToRgb, type CardTheme } from './cardThemes'
+import { applyCueEmphasis } from './cueEmphasis'
 import { groupByCard, renderSheets, type GuideOptions, type SheetCard } from './pdfLayout'
 
 const PT_TO_MM = 25.4 / 72
@@ -29,7 +30,6 @@ interface DrawOpts {
   lineHeight: number
   align: TextAlign
   color: Rgb
-  emphasizeFirstLine?: boolean
 }
 
 export interface GenerateVectorPdfParams {
@@ -139,7 +139,6 @@ function drawRuns(
       return
     }
     if (y <= maxY) {
-      const emphasize = !!o.emphasizeFirstLine && lineIndex === 0
       const spaces = n - 1
       const naturalW = lineContentW + spaces * spaceW
       let x = startX
@@ -149,7 +148,7 @@ function drawRuns(
       pdf.setTextColor(o.color.r, o.color.g, o.color.b)
       for (let i = 0; i < n; i++) {
         const wd = line[i]
-        setFont(emphasize ? { ...wd.run, bold: true } : wd.run)
+        setFont(wd.run)
         pdf.text(wd.text, x, y, { baseline: 'top' })
         x += wd.width + (i < spaces ? spaceW + extra : 0)
       }
@@ -191,10 +190,9 @@ function drawBlocks(
   bodyPt: number,
   ctx: { lineHeight: number; align: TextAlign; color: Rgb; cueEmphasis: boolean },
 ): void {
-  const tokens = marked.lexer(markdown)
+  const tokens = marked.lexer(ctx.cueEmphasis ? applyCueEmphasis(markdown) : markdown)
   let cursorY = y
   const paraGap = bodyPt * PT_TO_MM * 0.5
-  let firstContent = ctx.cueEmphasis
 
   const base: DrawOpts = { lineHeight: ctx.lineHeight, align: ctx.align, color: ctx.color }
   const leftBase: DrawOpts = { lineHeight: ctx.lineHeight, align: 'left', color: ctx.color }
@@ -206,12 +204,10 @@ function drawBlocks(
     if (t.type === 'heading') {
       const pt = bodyPt * (HEADING_SCALE[(t as Tokens.Heading).depth] ?? 1)
       const runs = inlineToRuns(t.tokens, true, false)
-      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, pt, { ...base, emphasizeFirstLine: firstContent }) + paraGap * 0.6
-      firstContent = false
+      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, pt, base) + paraGap * 0.6
     } else if (t.type === 'paragraph' || t.type === 'text') {
       const runs = inlineToRuns(t.tokens ?? ([{ type: 'text', text: t.text }] as Token[]), false, false)
-      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt, { ...base, emphasizeFirstLine: firstContent }) + paraGap
-      firstContent = false
+      cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt, base) + paraGap
     } else if (t.type === 'list') {
       const list = t as Tokens.List
       list.items.forEach((item, idx) => {
@@ -225,7 +221,6 @@ function drawBlocks(
         const runs = inlineToRuns(item.tokens, false, false)
         cursorY = drawRuns(pdf, runs, x + indent, cursorY, w - indent, maxY, bodyPt, leftBase) + paraGap * 0.3
       })
-      firstContent = false
       cursorY += paraGap * 0.5
     } else if (t.type === 'code') {
       const lines = (t.text ?? '').split('\n')
@@ -236,11 +231,9 @@ function drawBlocks(
         mono: true,
       }))
       cursorY = drawRuns(pdf, runs, x, cursorY, w, maxY, bodyPt, leftBase) + paraGap
-      firstContent = false
     } else if (t.type === 'blockquote') {
       const runs = inlineToRuns(t.tokens, false, true)
       cursorY = drawRuns(pdf, runs, x + 3, cursorY, w - 3, maxY, bodyPt, leftBase) + paraGap
-      firstContent = false
     } else if (t.type === 'space') {
       cursorY += paraGap
     }

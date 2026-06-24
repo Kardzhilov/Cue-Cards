@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import type { CardFace, NumberPosition, TextAlign } from '../types'
 import { mmToPx, ptToPx } from '../lib/cardSizes'
 import type { CardTheme } from '../lib/cardThemes'
+import { applyCueEmphasis } from '../lib/cueEmphasis'
 
 export interface CardProps {
   face: CardFace
@@ -61,14 +62,16 @@ export function Card({
         ['--notes-label' as string]: theme.muted,
       }}
     >
-      <div className={`card-content${cueEmphasis ? ' cue-emphasis' : ''}`}>
+      <div className="card-content">
         {face.isNotes ? (
           <div className="card-notes" aria-label="Notes area">
             <span className="card-notes-label">Notes</span>
             <div className="card-notes-lines" />
           </div>
         ) : (
-          <Markdown remarkPlugins={[remarkGfm]}>{face.markdown}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm]}>
+            {cueEmphasis ? applyCueEmphasis(face.markdown) : face.markdown}
+          </Markdown>
         )}
       </div>
       {showGuidesOverlay && showSafeArea && (

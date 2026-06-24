@@ -325,10 +325,6 @@ body {
   word-break: normal;
 }
 
-.card-content.cue-emphasis > :first-child::first-line {
-  font-weight: 700;
-}
-
 .card-safe-guide {
   position: absolute;
   border: 1px dashed #2b6fed;
